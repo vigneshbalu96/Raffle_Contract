@@ -13,12 +13,18 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  */
 
 contract Raffle is VRFConsumerBaseV2Plus {
-    /**
-     * Custom Errors
-     */
+    /**Custom Errors */
     error Raffle__sendMoreToEnterRaffle();
     error Raffle__TransferFailed();
+    error Raffle__RaffleNotOpen();
 
+    /**Type Declaration - Enum */
+    enum RaffleState {
+        open,
+        calculating
+    }
+
+    /**State Variables */
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
     uint256 private immutable i_interval;
@@ -29,9 +35,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint32 private immutable i_callbackGasLimit;
     uint32 private constant NUM_WORDS = 1;
     address private s_recentWinner;
+    RaffleState private s_raffleState;
 
     /*Events */
     event EnteredRaffle(address indexed player);
+    event winnerPicked(address indexed winner);
 
     constructor(
         uint256 entranceFee,
@@ -43,10 +51,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
         i_interval = interval;
-        s_lastTimeStamp = block.timestamp;
         i_keyHash = gasLane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+
+        s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.open;
     }
 
     function enterRaffle() public payable {
@@ -54,6 +64,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
         //require(msg.value >= i_entranceFee, Raffle__sendMoreToEnterRaffle());
         if (msg.value < i_entranceFee) {
             revert Raffle__sendMoreToEnterRaffle();
+        }
+        if (s_raffleState != RaffleState.open) {
+            revert Raffle__RaffleNotOpen();
         }
         s_players.push(payable(msg.sender));
         emit EnteredRaffle(msg.sender);
@@ -63,6 +76,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
         if ((block.timestamp - s_lastTimeStamp) < i_interval) {
             revert();
         }
+
+        s_raffleState = RaffleState.calculating;
+
         uint256 requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: i_keyHash,
@@ -85,10 +101,17 @@ contract Raffle is VRFConsumerBaseV2Plus {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
+
+        s_raffleState = RaffleState.open;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+
         (bool success, ) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransferFailed();
         }
+
+        emit winnerPicked(s_recentWinner);
     }
 
     /**
