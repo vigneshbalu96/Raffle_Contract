@@ -17,11 +17,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__sendMoreToEnterRaffle();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
-
+    error Raffle__upkeepNotNeeded(
+        uint256 balance,
+        uint256 playersLength,
+        uint256 raffleState
+    );
     /**Type Declaration - Enum */
     enum RaffleState {
-        open,
-        calculating
+        open, // 0   Each parameter in RaffleState is mapped to uint256
+        calculating // 1
     }
 
     /**State Variables */
@@ -72,9 +76,44 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit EnteredRaffle(msg.sender);
     }
 
-    function pickWinner() public {
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
-            revert();
+    /**
+     * @dev This function is called by the Chainlink nodes to check .
+     * If the lotterry is ready to have a  winner picked.
+     * The following should be true inorder for upkeepNeeded to be true :
+     * 1. The time interval has passed between the Raffle runs,
+     * 2. The lottery is open,
+     * 3. The contract has ETH,
+     * 4. Implicitly, your subscription has LINK
+     * @param - ignored
+     * @return upkeepNeeded - true if it's time to restart the lottery
+     * @return - ignored
+     */
+    function checkUpkeep(
+        bytes memory /* checkData */
+    ) public view returns (bool upkeepNeeded, bytes memory /* performData */) {
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >=
+            i_interval);
+        bool isOpen = s_raffleState == RaffleState.calculating;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+
+        upkeepNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
+        return (upkeepNeeded, "");
+    }
+
+    function performUpkeep(bytes calldata /* performData */) external {
+        // check to see if enough time has passed
+        // if ((block.timestamp - s_lastTimeStamp) < i_interval) {
+        //     revert();
+        // }
+
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__upkeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
         }
 
         s_raffleState = RaffleState.calculating;
@@ -94,6 +133,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         );
     }
 
+    //CEI: Check, Effects and Interactions Patten
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] calldata randomWords
