@@ -6,7 +6,6 @@ import {Script, console2} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
 abstract contract CodeConstants {
-
     /* VRF Mock Values */
     uint96 public MOCK_BASE_FEE = 0.25 ether;
     uint96 public MOCK_GAS_PRICE_LINK = 1e9;
@@ -21,7 +20,7 @@ abstract contract CodeConstants {
 
 /* Naming of the inherited contract dosn't matter here */
 
-contract helperConfig is Script, CodeConstants {
+contract HelperConfig is Script, CodeConstants {
     error HelperConfig__InvalidChainId();
 
     struct NetworkConfig {
@@ -86,7 +85,7 @@ contract helperConfig is Script, CodeConstants {
     }
 
     function getConfig() public returns (NetworkConfig memory) {
-        return getConfigByChainId(block.chainId);
+        return getConfigByChainId(block.chainid);
     }
 
     function getOrCreateAnvilETHConfig() public returns (NetworkConfig memory) {
@@ -94,22 +93,25 @@ contract helperConfig is Script, CodeConstants {
         if (networkConfig.vrfCoordinator != address(0)) {
             return networkConfig;
         }
-    }
 
-    // Deploy Mocks and such
-    vm.startBroadcast();
-    VRFCoordinatorV2_5Mock vrfCoordinatorMock = new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE_LINK, MOCK_WEI_PER_UNIT_LINK);
-    vm.stopBroadcast();
+        // Deploy Mocks and such
+        vm.startBroadcast();
+        VRFCoordinatorV2_5Mock vrfCoordinatorMock = new VRFCoordinatorV2_5Mock(
+            MOCK_BASE_FEE,
+            MOCK_GAS_PRICE_LINK,
+            MOCK_WEI_PER_UNIT_LINK
+        );
+        vm.stopBroadcast();
 
-    networkConfig = NetworkConfig({
+        networkConfig = NetworkConfig({
             entranceFee: 0.01 ether,
             interval: 30,
             vrfCoordinator: address(vrfCoordinatorMock),
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             callbackGasLimit: 500000,
             subscriptionId: 0
-    })
+        });
 
-    return networkConfig;
+        return networkConfig;
+    }
 }
- 
