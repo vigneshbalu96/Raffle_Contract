@@ -5,6 +5,7 @@ pragma solidity 0.8.19;
 import {Script} from "forge-std/Script.sol";
 import {Raffle} from "src/Raffle.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
+import {CreateSubscription, FundSubscription, AddConsumer} from "script/Interactions.s.sol";
 
 contract DeployRaffle is Script {
     function deployRaffle() public returns (Raffle, HelperConfig) {
@@ -13,7 +14,23 @@ contract DeployRaffle is Script {
         // sepolia --> get sepolia config
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
 
-        vm.startBroadcast();
+        if (config.subscriptionId == 0) {
+            //Create Subscription
+            CreateSubscription createSubscription = new CreateSubscription();
+            (config.subscriptionId, config.vrfCoordinator) = createSubscription
+                .createSubscription(config.vrfCoordinator, config.account);
+
+            // Fund the subscription
+            FundSubscription fundSubscription = new FundSubscription();
+            fundSubscription.fundSubscription(
+                config.vrfCoordinator,
+                config.subscriptionId,
+                config.link,
+                config.account
+            );
+        }
+
+        vm.startBroadcast(config.account);
         Raffle raffle = new Raffle(
             config.entranceFee,
             config.interval,
@@ -24,10 +41,21 @@ contract DeployRaffle is Script {
         );
         vm.stopBroadcast();
 
+        AddConsumer addConsumer = new AddConsumer();
+        //we don't need to broadcast coz done in the addConsumer function...
+        addConsumer.addConsumer(
+            address(raffle),
+            config.vrfCoordinator,
+            config.subscriptionId,
+            config.account
+        );
         return (raffle, helperConfig);
     }
 
-    function run() external returns (Raffle, HelperConfig) {
-        return deployRaffle();
+    // function run() external returns (Raffle, HelperConfig) {
+    //     return deployRaffle();
+
+    function run() public {
+        deployRaffle();
     }
 }
