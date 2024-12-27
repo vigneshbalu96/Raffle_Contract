@@ -11,7 +11,7 @@ abstract contract CodeConstants {
     uint96 public MOCK_BASE_FEE = 0.25 ether;
     uint96 public MOCK_GAS_PRICE_LINK = 1e9;
     // Link / ETH price
-    int256 public MOCK_WEI_PER_UNIT_LINK = 4E15;
+    int256 public MOCK_WEI_PER_UNIT_LINK = 4e15;
 
     /* chian Id's */
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
@@ -43,11 +43,7 @@ contract HelperConfig is Script, CodeConstants {
         networkConfigs[ETH_MAINNET_CHAIN_ID] = getMainnetETHConfig();
     }
 
-    function getSepoliaETHConfig()
-        public
-        pure
-        returns (NetworkConfig memory SepoliaConfig)
-    {
+    function getSepoliaETHConfig() public pure returns (NetworkConfig memory SepoliaConfig) {
         SepoliaConfig = NetworkConfig({
             entranceFee: 0.01 ether,
             interval: 30,
@@ -61,11 +57,7 @@ contract HelperConfig is Script, CodeConstants {
         return SepoliaConfig;
     }
 
-    function getMainnetETHConfig()
-        public
-        pure
-        returns (NetworkConfig memory MainnetConfig)
-    {
+    function getMainnetETHConfig() public pure returns (NetworkConfig memory MainnetConfig) {
         MainnetConfig = NetworkConfig({
             entranceFee: 0.01 ether,
             interval: 30,
@@ -79,9 +71,7 @@ contract HelperConfig is Script, CodeConstants {
         return MainnetConfig;
     }
 
-    function getConfigByChainId(
-        uint256 chainId
-    ) public returns (NetworkConfig memory) {
+    function getConfigByChainId(uint256 chainId) public returns (NetworkConfig memory) {
         if (networkConfigs[chainId].vrfCoordinator != address(0)) {
             return networkConfigs[chainId];
         } else if (chainId == LOCAL_CHAIN_ID) {
@@ -103,11 +93,8 @@ contract HelperConfig is Script, CodeConstants {
 
         // Deploy Mocks and such
         vm.startBroadcast();
-        VRFCoordinatorV2_5Mock vrfCoordinatorMock = new VRFCoordinatorV2_5Mock(
-            MOCK_BASE_FEE,
-            MOCK_GAS_PRICE_LINK,
-            MOCK_WEI_PER_UNIT_LINK
-        );
+        VRFCoordinatorV2_5Mock vrfCoordinatorMock =
+            new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE_LINK, MOCK_WEI_PER_UNIT_LINK);
         LinkToken linkToken = new LinkToken();
         vm.stopBroadcast();
 
